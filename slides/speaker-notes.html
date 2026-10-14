@@ -1,0 +1,82 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Speaker notes — Who moved my libs?</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wght@300..900&amp;family=Hanken+Grotesk:wght@400..700&amp;family=IBM+Plex+Mono:wght@400;500;600;700&amp;display=swap">
+<style>
+*{box-sizing:border-box}
+body{margin:0;background:#242543;color:#f0f0f6;font-family:"Hanken Grotesk",system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
+main{max-width:1000px;margin:0 auto;padding:28px 32px 110px}
+#position{font-size:16px;color:#c5c5d7;letter-spacing:.08em}
+h1{font-family:"Archivo","Arial Narrow",system-ui,sans-serif;font-size:32px;line-height:1.2;margin:10px 0 12px}
+main>.hint{margin:0 0 18px}
+#notes{font-size:24px;line-height:1.35;margin-top:18px}
+#notes p{margin:0 0 10px}
+#notes code{font-family:"IBM Plex Mono",ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:.85em;color:#ee961a}
+#notes ol{padding-left:28px;margin:0 0 22px}
+#notes li{margin-bottom:10px}
+#notes .note-transition{padding:6px 12px;border:1px dashed #55566f;border-radius:6px;font-size:16px;color:#c5c5d7}
+#notes .note-transition.is-next{border-color:#ee961a;background:rgba(238,150,26,.08);color:#ee961a}
+a{color:#ee961a}
+footer{position:fixed;inset:auto 0 0;display:flex;align-items:center;justify-content:space-between;gap:20px;padding:18px 32px;background:#242543;border-top:1px solid #55566f}
+button{font:inherit;font-size:18px;border:1px solid #55566f;border-radius:6px;padding:10px 20px;background:#242543;color:#f0f0f6;cursor:pointer}
+button:hover,button:focus-visible{border-color:#ee961a}
+#next{background:#ee961a;border-color:#ee961a;color:#242543;font-weight:700}
+.controls{display:flex;gap:12px}
+.hint{font-size:15px;color:#c5c5d7}
+@media(max-width:600px){main{padding:20px 20px 130px}footer{padding:16px 20px;flex-wrap:wrap}h1{font-size:30px}}
+</style>
+</head>
+<body>
+<main>
+  <div id="position">Speaker notes</div>
+  <h1 id="title">Waiting for the presentation</h1>
+  <p class="hint">One notes page per slide. Press Next at the ▶ markers.</p>
+  <div id="notes" aria-live="polite"><p>Open speaker notes by pressing N in the presentation.</p></div>
+</main>
+<footer>
+  <span id="cue" class="hint">Move this window to your second screen.</span>
+  <div class="controls"><button id="previous" type="button">← Back</button><button id="next" type="button">Next →</button></div>
+</footer>
+<script>
+const presentationWindow = window.opener;
+const position = document.getElementById('position');
+const title = document.getElementById('title');
+const cue = document.getElementById('cue');
+const notes = document.getElementById('notes');
+let noteIndex = 0;
+
+function control(key) {
+  if (!presentationWindow || presentationWindow.closed) {
+    cue.textContent = 'Open the presentation and press N to reconnect.';
+    return;
+  }
+  presentationWindow.postMessage({type:'speaker-control', key}, '*');
+}
+
+addEventListener('message', e => {
+  if (!presentationWindow || e.source !== presentationWindow || e.data?.type !== 'speaker-state') return;
+  cue.textContent = e.data.cue;
+  if (noteIndex !== e.data.index) {
+    position.textContent = 'Slide ' + String(e.data.index).padStart(2, '0') + ' / ' + e.data.total;
+    title.textContent = e.data.title;
+    notes.innerHTML = e.data.notes;
+    noteIndex = e.data.index;
+    window.scrollTo(0, 0);
+  }
+  notes.querySelectorAll('.note-transition').forEach(marker => marker.classList.toggle('is-next', Number(marker.dataset.step) === e.data.step + 1));
+});
+addEventListener('keydown', e => {
+  if (['ArrowRight', 'ArrowDown', 'PageDown', ' ', 'ArrowLeft', 'ArrowUp', 'PageUp', 'Home', 'End'].includes(e.key)) {
+    e.preventDefault();
+    control(e.key);
+  }
+});
+document.getElementById('previous').addEventListener('click', () => control('ArrowLeft'));
+document.getElementById('next').addEventListener('click', () => control('ArrowRight'));
+if (presentationWindow && !presentationWindow.closed) presentationWindow.postMessage({type:'speaker-ready'}, '*');
+</script>
+</body>
+</html>

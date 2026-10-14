@@ -1,0 +1,38 @@
+apiVersion: policies.kyverno.io/v1
+kind: ImageValidatingPolicy
+metadata:
+  name: verify-supply-chain-demo-images
+spec:
+  failurePolicy: Fail
+  webhookConfiguration:
+    timeoutSeconds: 30
+  evaluation:
+    background:
+      enabled: false
+  validationActions: [Deny]
+  matchConstraints:
+    resourceRules:
+      - apiGroups: [""]
+        apiVersions: ["v1"]
+        operations: ["CREATE", "UPDATE"]
+        resources: ["pods"]
+  matchConditions:
+    - name: supply-chain-demo-namespace-only
+      expression: "object.metadata.namespace == 'supply-chain-demo'"
+  matchImageReferences:
+    - glob: "zot.supply-chain-demo.svc.cluster.local:5000/supply-chain-demo:*"
+  credentials:
+    allowInsecureRegistry: true
+  attestors:
+    - name: cosign
+      cosign:
+        key:
+          data: |
+__COSIGN_PUBLIC_KEY__
+        ctlog:
+          insecureIgnoreTlog: true
+          insecureIgnoreSCT: true
+  validations:
+    - expression: >-
+        images.containers.map(image, verifyImageSignatures(image, [attestors.cosign])).all(e, e > 0)
+      message: image signature verification failed
